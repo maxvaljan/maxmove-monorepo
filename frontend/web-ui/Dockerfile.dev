@@ -1,0 +1,24 @@
+# Development Docker configuration for Next.js app
+# Use this temporarily until production build issues are resolved
+
+FROM node:18-alpine AS base
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Set environment variables
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Run development server
+CMD ["npm", "run", "dev"]

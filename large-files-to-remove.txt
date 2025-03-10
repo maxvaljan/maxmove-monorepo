@@ -1,0 +1,4 @@
+frontend/web-ui-next/.next/cache/webpack/server-production/0.pack
+frontend/web-ui-next/.next/cache/webpack/client-production/0.pack
+frontend/web-ui/.next/cache/webpack/client-production/0.pack
+frontend/web-ui/.next/cache/webpack/server-production/0.pack

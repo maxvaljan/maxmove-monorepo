@@ -1,0 +1,29 @@
+{
+  "name": "maxmove-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend/*",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:web\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:web": "cd frontend/web-ui && npm run dev",
+    "dev:customer": "cd frontend/customer-ui && npm run dev",
+    "dev:driver": "cd frontend/driver-ui && npm run dev",
+    "build": "npm run build:backend && npm run build:web",
+    "build:backend": "cd backend && npm run build",
+    "build:web": "cd frontend/web-ui && npm run build",
+    "lint": "npm run lint:backend && npm run lint:web",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:web": "cd frontend/web-ui && npm run lint",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.1"
+  }
+}

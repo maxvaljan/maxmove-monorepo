@@ -1,0 +1,28 @@
+'use client';
+
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { SignInCard } from "@/components/signin/SignInCard";
+import { SignUpHeader } from "@/components/signup/SignUpHeader";
+
+export default function SignIn() {
+  const router = useRouter();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-maxmove-100 to-maxmove-200 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+      <Button
+        variant="ghost"
+        onClick={() => router.push("/")}
+        className="absolute top-4 left-4 text-maxmove-800 hover:text-maxmove-900 hover:bg-white/20"
+      >
+        <ArrowLeft className="h-5 w-5 mr-2" />
+        Back
+      </Button>
+      <div className="w-full max-w-md space-y-8">
+        <SignUpHeader />
+        <SignInCard />
+      </div>
+    </div>
+  );
+}

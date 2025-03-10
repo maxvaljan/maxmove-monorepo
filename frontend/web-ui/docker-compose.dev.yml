@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Next.js Frontend (Development Mode)
+  nextjs-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: maxmove-nextjs-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://backend:4000
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - maxmove-network
+    restart: unless-stopped
+
+  # Backend API
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: maxmove-backend
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    networks:
+      - maxmove-network
+    restart: unless-stopped
+
+  # Nginx for load balancing (for soft launch phase)
+  nginx:
+    image: nginx:alpine
+    container_name: maxmove-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - nextjs-frontend
+    networks:
+      - maxmove-network
+    restart: unless-stopped
+
+networks:
+  maxmove-network:
+    driver: bridge
