@@ -18,9 +18,15 @@ const app = express();
 
 // Middleware
 app.use(helmet()); // Security headers
-app.use(morgan('dev')); // Request logging
-app.use(cors()); // CORS support
-app.use(express.json()); // JSON parsing
+app.use(morgan(config.environment === 'production' ? 'combined' : 'dev')); // Request logging
+// Configure CORS for production
+app.use(cors({
+  origin: process.env.CORS_ALLOWED_ORIGINS ? 
+    process.env.CORS_ALLOWED_ORIGINS.split(',') : 
+    ['http://localhost:3000', 'http://localhost:8000'],
+  credentials: true // Important for cookies
+}));
+app.use(express.json({ limit: '1mb' })); // JSON parsing with size limit
 
 // Health check
 app.get('/health', (req, res) => {

@@ -6,8 +6,8 @@ const config = {
   
   // Supabase configuration
   supabase: {
-    url: process.env.SUPABASE_URL || 'https://xuehdmslktlsgpoexilo.supabase.co',
-    key: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1ZWhkbXNsa3Rsc2dwb2V4aWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYzNDA4ODIsImV4cCI6MjA1MTkxNjg4Mn0.YRsqqW8G-S3UvIrfXblDSqAlTE6fk7QCy1BSNVIgIe0',
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_KEY,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   },
   
@@ -24,13 +24,18 @@ const config = {
   
   // JWT configuration
   jwt: {
-    secret: process.env.JWT_SECRET || 'your-secret-key',
+    secret: process.env.JWT_SECRET || 'temp-jwt-secret-must-change-in-production',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
   
   // Logging
   logging: {
     level: process.env.LOG_LEVEL || 'info',
+  },
+  
+  // Resend email service
+  resend: {
+    apiKey: process.env.RESEND_API_KEY,
   },
 };
 

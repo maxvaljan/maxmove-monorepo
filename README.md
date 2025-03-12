@@ -93,9 +93,70 @@ The MaxMove API provides endpoints for the following functionality:
    npm run dev:driver
    ```
 
-### Docker Deployment
+### Production Deployment
 
-To deploy using Docker:
+For production deployment, we provide a simplified approach using Docker:
+
+1. Copy the example environment file and fill in your values:
+   ```
+   cp .env.example .env
+   nano .env  # Edit the values
+   ```
+
+2. Deploy using our deployment script:
+   ```
+   ./deploy.sh
+   ```
+
+3. For manual deployment with Docker Compose:
+   ```
+   docker-compose -f docker-compose.prod.yml build
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
+
+4. Check service status:
+   ```
+   docker-compose -f docker-compose.prod.yml ps
+   ```
+
+5. View logs:
+   ```
+   docker-compose -f docker-compose.prod.yml logs -f
+   ```
+
+### Railway Deployment
+
+To deploy on Railway:
+
+1. Install Railway CLI:
+   ```
+   npm install -g @railway/cli
+   ```
+
+2. Login and initialize a project:
+   ```
+   railway login
+   railway init
+   ```
+
+3. Deploy the backend:
+   ```
+   cd backend
+   railway up
+   ```
+
+4. Deploy the web UI (link it to the backend):
+   ```
+   cd ../frontend/web-ui
+   railway link
+   railway up
+   ```
+
+5. Set environment variables via the Railway dashboard
+
+### Development Docker Environment
+
+For development using Docker:
 
 ```
 npm run docker:build
