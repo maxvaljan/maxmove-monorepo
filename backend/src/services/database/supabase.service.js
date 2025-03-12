@@ -2,9 +2,9 @@ const { createClient } = require('@supabase/supabase-js');
 const config = require('../../config');
 const { logger } = require('../../middleware/errorHandler');
 
-// The same Supabase URL and key used in frontend
-const SUPABASE_URL = "https://xuehdmslktlsgpoexilo.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1ZWhkbXNsa3Rsc2dwb2V4aWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYzNDA4ODIsImV4cCI6MjA1MTkxNjg4Mn0.YRsqqW8G-S3UvIrfXblDSqAlTE6fk7QCy1BSNVIgIe0";
+// Get Supabase URL and key from config
+const SUPABASE_URL = config.supabase.url;
+const SUPABASE_PUBLISHABLE_KEY = config.supabase.key;
 
 /**
  * Singleton Supabase client service
@@ -19,19 +19,60 @@ class SupabaseService {
     // Use the same credentials as frontend for consistency
     this.client = createClient(
       SUPABASE_URL,
-      SUPABASE_PUBLISHABLE_KEY
+      SUPABASE_PUBLISHABLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true
+        }
+      }
     );
     
     // Use service role client when available (for admin operations)
-    // This will be configured later for operations that need elevated privileges
+    // This client has elevated privileges and should be used carefully
     if (config.supabase.serviceRoleKey) {
       this.adminClient = createClient(
         SUPABASE_URL,
-        config.supabase.serviceRoleKey
+        config.supabase.serviceRoleKey,
+        {
+          auth: {
+            autoRefreshToken: false
+          }
+        }
       );
     }
     
     SupabaseService.instance = this;
+    
+    // Set up auth state change listener
+    this.setupAuthStateChangeListener();
+  }
+  
+  /**
+   * Set up listener for auth state changes
+   * This will log auth events for debugging purposes
+   * Can be extended later to perform actions on auth events
+   */
+  setupAuthStateChangeListener() {
+    try {
+      const { data: { subscription } } = this.client.auth.onAuthStateChange(
+        (event, session) => {
+          logger.info({
+            message: 'Auth state changed',
+            event,
+            userId: session?.user?.id || 'none'
+          });
+        }
+      );
+      
+      // Store subscription to unsubscribe later if needed
+      this.authSubscription = subscription;
+    } catch (error) {
+      logger.error({
+        message: 'Failed to set up auth state change listener',
+        error: error.message
+      });
+    }
   }
   
   /**
@@ -66,35 +107,242 @@ class SupabaseService {
   }
 
   // Authentication services
+  /**
+   * Sign in a user with email/password or phone/password
+   * @param {Object} credentials - {email, password} or {phone, password}
+   * @returns {Promise<{data, error}>} - Supabase sign in response
+   */
   async signIn(credentials) {
     try {
-      return await this.client.auth.signInWithPassword(credentials);
+      // Validate credentials
+      if (!credentials) {
+        throw new Error('Credentials are required for sign in');
+      }
+      
+      if (!credentials.password) {
+        throw new Error('Password is required for sign in');
+      }
+      
+      if (!credentials.email && !credentials.phone) {
+        throw new Error('Email or phone is required for sign in');
+      }
+      
+      logger.info({
+        message: 'Attempting sign in',
+        identifierType: credentials.email ? 'email' : 'phone'
+      });
+      
+      // Attempt sign in
+      const result = await this.client.auth.signInWithPassword(credentials);
+      
+      // Log result (success or failure)
+      if (result.error) {
+        logger.error({
+          message: 'Sign in failed',
+          error: result.error.message,
+          code: result.error.status
+        });
+      } else {
+        logger.info({
+          message: 'Sign in successful',
+          userId: result.data?.user?.id
+        });
+      }
+      
+      return result;
     } catch (error) {
       this.handleError(error, 'signIn');
     }
   }
 
+  /**
+   * Sign up a new user
+   * @param {Object} credentials - User credentials and profile data
+   * @returns {Promise<{data, error}>} - Supabase sign up response
+   */
   async signUp(credentials) {
     try {
-      return await this.client.auth.signUp(credentials);
+      // Validate credentials
+      if (!credentials?.email) {
+        throw new Error('Email is required for sign up');
+      }
+      
+      if (!credentials?.password) {
+        throw new Error('Password is required for sign up');
+      }
+      
+      // Log the sign up attempt (without sensitive info)
+      logger.info({
+        message: 'Attempting user sign up',
+        email: credentials.email,
+        withProfile: !!credentials.options?.data
+      });
+      
+      // Attempt sign up
+      const result = await this.client.auth.signUp(credentials);
+      
+      if (result.error) {
+        logger.error({
+          message: 'Sign up failed',
+          error: result.error.message,
+          code: result.error.status
+        });
+      } else {
+        logger.info({
+          message: 'Sign up successful',
+          userId: result.data?.user?.id,
+          emailConfirmed: !result.data?.user?.identities?.[0]?.identity_data?.email_verified
+        });
+        
+        // Create or update profile if user was created
+        if (result.data?.user?.id && credentials.options?.data) {
+          // Use admin client for this to ensure it works even if email verification is pending
+          if (this.adminClient) {
+            try {
+              await this.adminClient
+                .from('profiles')
+                .upsert({
+                  id: result.data.user.id,
+                  name: credentials.options.data.name,
+                  phone_number: credentials.options.data.phone_number,
+                  role: credentials.options.data.role || 'customer',
+                  created_at: new Date().toISOString()
+                })
+                .select();
+              
+              logger.info({
+                message: 'Created profile for new user',
+                userId: result.data.user.id
+              });
+            } catch (profileError) {
+              logger.error({
+                message: 'Failed to create profile for new user',
+                error: profileError.message,
+                userId: result.data.user.id
+              });
+            }
+          }
+        }
+      }
+      
+      return result;
     } catch (error) {
       this.handleError(error, 'signUp');
     }
   }
 
-  async signOut() {
+  /**
+   * Sign out a user - clears the session
+   * @param {Object} options - Optional sign out options
+   * @returns {Promise<{error}>} - Supabase sign out response
+   */
+  async signOut(options = {}) {
     try {
-      return await this.client.auth.signOut();
+      logger.info({
+        message: 'Attempting user sign out'
+      });
+      
+      const result = await this.client.auth.signOut(options);
+      
+      if (result.error) {
+        logger.error({
+          message: 'Sign out failed',
+          error: result.error.message
+        });
+      } else {
+        logger.info({
+          message: 'Sign out successful'
+        });
+      }
+      
+      return result;
     } catch (error) {
       this.handleError(error, 'signOut');
     }
   }
 
+  /**
+   * Get user information from a JWT token
+   * @param {string} jwt - JWT token
+   * @returns {Promise<{data, error}>} - User data or error
+   */
   async getUser(jwt) {
     try {
-      return await this.client.auth.getUser(jwt);
+      if (!jwt) {
+        throw new Error('JWT token is required to get user');
+      }
+      
+      const result = await this.client.auth.getUser(jwt);
+      
+      if (result.error) {
+        logger.error({
+          message: 'Get user from JWT failed',
+          error: result.error.message
+        });
+      }
+      
+      return result;
     } catch (error) {
       this.handleError(error, 'getUser');
+    }
+  }
+  
+  /**
+   * Verify a user's session
+   * @param {string} jwt - JWT token from the request
+   * @returns {Promise<{valid: boolean, user?: Object, error?: string}>}
+   */
+  async verifySession(jwt) {
+    try {
+      if (!jwt) {
+        return { valid: false, error: 'No JWT token provided' };
+      }
+      
+      const { data, error } = await this.getUser(jwt);
+      
+      if (error || !data.user) {
+        return { 
+          valid: false, 
+          error: error ? error.message : 'Invalid session' 
+        };
+      }
+      
+      // Get user profile
+      const profile = await this.getUserProfile(data.user.id);
+      
+      return {
+        valid: true,
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          role: profile?.role || 'customer',
+          name: profile?.name,
+          phone: profile?.phone_number
+        }
+      };
+    } catch (error) {
+      logger.error({
+        message: 'Session verification failed',
+        error: error.message
+      });
+      return { valid: false, error: 'Session verification failed' };
+    }
+  }
+  
+  /**
+   * Refresh a user's session token
+   * @param {string} refreshToken - The refresh token
+   * @returns {Promise<{data, error}>} - New session data or error
+   */
+  async refreshSession(refreshToken) {
+    try {
+      if (!refreshToken) {
+        throw new Error('Refresh token is required');
+      }
+      
+      return await this.client.auth.refreshSession({ refresh_token: refreshToken });
+    } catch (error) {
+      this.handleError(error, 'refreshSession');
     }
   }
 
