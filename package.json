@@ -21,12 +21,17 @@
     "lint:web": "cd frontend/web-ui && npm run lint",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "turbo:build": "turbo run build",
+    "turbo:dev": "turbo run dev",
+    "turbo:lint": "turbo run lint",
+    "turbo:test": "turbo run test"
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",
     "@babel/preset-env": "^7.26.9",
-    "concurrently": "^8.0.1"
+    "concurrently": "^8.0.1",
+    "turbo": "^2.4.4"
   },
   "dependencies": {
     "@opentelemetry/api": "1.9.0",
