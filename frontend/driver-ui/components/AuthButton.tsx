@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
 import Colors from '@/constants/Colors';
 
 interface AuthButtonProps {
@@ -9,6 +9,8 @@ interface AuthButtonProps {
   variant?: 'primary' | 'secondary' | 'outline';
   style?: ViewStyle;
   textStyle?: TextStyle;
+  disabled?: boolean;
+  loading?: boolean;
 }
 
 export default function AuthButton({
@@ -18,12 +20,15 @@ export default function AuthButton({
   variant = 'primary',
   style,
   textStyle,
+  disabled = false,
+  loading = false,
 }: AuthButtonProps) {
   const buttonStyles = [
     styles.button,
     variant === 'primary' && styles.primaryButton,
     variant === 'secondary' && styles.secondaryButton,
     variant === 'outline' && styles.outlineButton,
+    disabled && styles.disabledButton,
     style,
   ];
 
@@ -32,13 +37,28 @@ export default function AuthButton({
     variant === 'primary' && styles.primaryText,
     variant === 'secondary' && styles.secondaryText,
     variant === 'outline' && styles.outlineText,
+    disabled && styles.disabledText,
     textStyle,
   ];
 
   return (
-    <TouchableOpacity style={buttonStyles} onPress={onPress} activeOpacity={0.8}>
-      {icon}
-      <Text style={textStyles}>{title}</Text>
+    <TouchableOpacity 
+      style={buttonStyles} 
+      onPress={onPress} 
+      activeOpacity={0.8}
+      disabled={disabled || loading}
+    >
+      {loading ? (
+        <ActivityIndicator 
+          size="small" 
+          color={variant === 'primary' ? Colors.surfaceLight : Colors.accent} 
+        />
+      ) : (
+        <>
+          {icon}
+          <Text style={textStyles}>{title}</Text>
+        </>
+      )}
     </TouchableOpacity>
   );
 }
@@ -52,6 +72,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 30,
     marginVertical: 8,
+    minHeight: 52, // Ensure consistent height for loading state
   },
   primaryButton: {
     backgroundColor: Colors.accent,
@@ -63,6 +84,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: Colors.accent,
+  },
+  disabledButton: {
+    backgroundColor: 'rgba(52, 152, 219, 0.5)', // Lighter accent color
+    opacity: 0.7,
   },
   text: {
     fontSize: 16,
@@ -77,5 +102,8 @@ const styles = StyleSheet.create({
   },
   outlineText: {
     color: Colors.accent,
+  },
+  disabledText: {
+    color: 'rgba(255, 255, 255, 0.7)',
   },
 });
