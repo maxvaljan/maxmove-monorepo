@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ const formSchema = z.object({
   department: z.string().min(1, "Please select a department"),
 });
 
-export default function ContactPage() {
+function ContactPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialSubject = searchParams.get('subject') || '';
@@ -313,5 +313,17 @@ export default function ContactPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen pt-32 pb-16 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-maxmove-800"></div>
+      </div>
+    }>
+      <ContactPageContent />
+    </Suspense>
   );
 }

@@ -2,6 +2,35 @@
 
 This is the Next.js implementation of the MaxMove web interface. It replaces the previous Vite implementation with a modern, server-rendered architecture.
 
+## Docker Deployment
+
+We've added an optimized Docker deployment solution for this application. 
+
+### Building the Docker Image
+
+```bash
+# Make the script executable (if not already)
+chmod +x scripts/docker-build.sh
+
+# Run the Docker build script
+./scripts/docker-build.sh
+```
+
+This script:
+1. Sets up environment variables
+2. Cleans previous build artifacts
+3. Installs dependencies
+4. Builds the Next.js application locally first
+5. Creates an optimized Docker image using the pre-built assets
+6. Tags the image with the version from package.json
+
+### Running the Docker Container
+
+```bash
+# Run the Docker container
+docker run -p 3000:3000 maxmove-web-ui:latest
+```
+
 ## Getting Started
 
 ### Prerequisites

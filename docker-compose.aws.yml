@@ -32,11 +32,11 @@ services:
     networks:
       - maxmove-network
 
-  # Web UI service
+  # Web UI service (AWS optimized version)
   web-ui:
     build:
       context: ./frontend/web-ui
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.aws
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
         - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
