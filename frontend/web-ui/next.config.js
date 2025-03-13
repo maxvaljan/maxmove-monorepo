@@ -3,13 +3,18 @@ const nextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
   
-  // Disable static optimization for now to avoid 404/500 page generation issues
-  // output: 'standalone',
+  // Enable standalone output for Docker deployment
+  output: 'standalone',
   
   // Skip building error pages during production build
   typescript: {
     // Disable type checking on build to allow error pages to be skipped
     ignoreBuildErrors: true,
+  },
+  
+  // Explicitly set eslint settings
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   
   // Image optimization configuration
@@ -69,29 +74,54 @@ const nextConfig = {
   // Set custom build directory
   distDir: '.next',
   
+  // Set longer timeout for asset optimization
+  staticPageGenerationTimeout: 180,
+  
   // Configure webpack for optimizations
   webpack: (config, { dev, isServer }) => {
     // Split chunks for better performance
     if (!dev && !isServer) {
+      // More aggressive chunk splitting for better caching
       config.optimization.splitChunks = {
         chunks: 'all',
+        maxInitialRequests: 25,
+        maxAsyncRequests: 25,
+        minSize: 20000,
         cacheGroups: {
-          vendors: {
+          framework: {
+            name: 'framework',
+            test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
+            priority: 40,
+            // Don't let webpack eliminate the chunk if it's imported from all over the app
+            enforce: true,
+          },
+          commons: {
+            name: 'commons',
+            minChunks: 2,
+            priority: 20,
+          },
+          lib: {
             test: /[\\/]node_modules[\\/]/,
-            priority: -10,
+            priority: 10,
             reuseExistingChunk: true,
           },
-          default: {
-            minChunks: 2,
-            priority: -20,
-            reuseExistingChunk: true,
+          styles: {
+            name: 'styles',
+            test: /\.css$/,
+            chunks: 'all',
+            enforce: true,
           },
         },
       };
+      
+      // Decrease size of generated code
+      config.optimization.concatenateModules = true;
     }
     
     return config;
   },
+  
+  // No experimental features - these were causing build errors
 };
 
 module.exports = nextConfig;

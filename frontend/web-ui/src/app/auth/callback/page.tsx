@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -67,5 +67,21 @@ export default function AuthCallbackPage() {
         <p className="text-maxmove-600">Please wait while we verify your credentials.</p>
       </div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-maxmove-100 to-maxmove-200">
+        <div className="bg-white/50 backdrop-blur-sm p-8 rounded-lg shadow-lg text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-maxmove-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-maxmove-900 mb-2">Loading...</h2>
+          <p className="text-maxmove-600">Please wait a moment.</p>
+        </div>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

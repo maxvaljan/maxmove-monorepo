@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { PersonalSignUpForm } from "@/components/signup/PersonalSignUpForm";
 import { BusinessSignUpForm } from "@/components/signup/BusinessSignUpForm";
 import { DriverSignUpForm } from "@/components/signup/DriverSignUpForm";
 
-export default function SignUp() {
+function SignUpContent() {
   const searchParams = useSearchParams();
   const defaultAccountType = searchParams.get("type") || "personal";
   const [accountType, setAccountType] = useState(defaultAccountType);
@@ -133,5 +133,19 @@ export default function SignUp() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function SignUp() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-maxmove-100 to-maxmove-200 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md space-y-8 flex justify-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-maxmove-800"></div>
+        </div>
+      </div>
+    }>
+      <SignUpContent />
+    </Suspense>
   );
 }
