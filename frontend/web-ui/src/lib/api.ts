@@ -184,8 +184,10 @@ export const apiClient = {
   
   // Helper method to get authenticated token
   getAuthToken(): string | null {
+    // In Next.js, we should rely on httpOnly cookies for auth
+    // This is just a fallback for components that need direct access
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth_token');
+      return sessionStorage.getItem('auth_token');
     }
     return null;
   },
@@ -212,20 +214,14 @@ export const apiClient = {
         const data = await response.json();
         
         if (data.success && data.data.token) {
-          // Store token in localStorage for client-side access
-          localStorage.setItem('auth_token', data.data.token);
-          localStorage.setItem('auth_refresh_token', data.data.refreshToken);
-          
-          // Also store expiry for auto-refresh logic
-          if (data.data.expires) {
-            localStorage.setItem('auth_expires_at', data.data.expires.at.toString());
-            localStorage.setItem('auth_expires_in', data.data.expires.in.toString());
-          }
+          // Store minimal data in sessionStorage for client-side access
+          // Most auth will be handled by httpOnly cookies
+          sessionStorage.setItem('auth_token', data.data.token);
           
           // Store basic user info for quick access
           if (data.data.user) {
-            localStorage.setItem('user_id', data.data.user.id);
-            localStorage.setItem('user_role', data.data.user.role);
+            sessionStorage.setItem('user_id', data.data.user.id);
+            sessionStorage.setItem('user_role', data.data.user.role);
           }
         }
         
@@ -263,17 +259,12 @@ export const apiClient = {
         
         // If we got a token (email verification not required), store it
         if (data.success && data.data.token) {
-          localStorage.setItem('auth_token', data.data.token);
-          localStorage.setItem('auth_refresh_token', data.data.refreshToken);
-          
-          if (data.data.expires) {
-            localStorage.setItem('auth_expires_at', data.data.expires.at.toString());
-            localStorage.setItem('auth_expires_in', data.data.expires.in.toString());
-          }
+          // Store minimal data in sessionStorage for client-side access
+          sessionStorage.setItem('auth_token', data.data.token);
           
           if (data.data.user) {
-            localStorage.setItem('user_id', data.data.user.id);
-            localStorage.setItem('user_role', data.data.user.role);
+            sessionStorage.setItem('user_id', data.data.user.id);
+            sessionStorage.setItem('user_role', data.data.user.role);
           }
         }
         
@@ -286,16 +277,14 @@ export const apiClient = {
     
     async logout() {
       try {
-        // Get refresh token to send to server
-        const refreshToken = localStorage.getItem('auth_refresh_token');
-        
+        // Use the cookies for authentication
         const response = await fetch('/api/auth/logout', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-Platform': 'web'
           },
-          body: JSON.stringify({ refreshToken }),
+          body: JSON.stringify({}),
           credentials: 'include' // Important for cookies
         });
         
@@ -325,19 +314,14 @@ export const apiClient = {
     
     async refreshToken() {
       try {
-        const refreshToken = localStorage.getItem('auth_refresh_token');
-        
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
-        }
-        
+        // Use the cookie-based refresh flow
         const response = await fetch('/api/auth/refresh', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-Platform': 'web'
           },
-          body: JSON.stringify({ refreshToken }),
+          body: JSON.stringify({}),
           credentials: 'include' // Important for cookies
         });
         
@@ -350,13 +334,8 @@ export const apiClient = {
         const data = await response.json();
         
         if (data.success && data.data.token) {
-          localStorage.setItem('auth_token', data.data.token);
-          localStorage.setItem('auth_refresh_token', data.data.refreshToken);
-          
-          if (data.data.expires) {
-            localStorage.setItem('auth_expires_at', data.data.expires.at.toString());
-            localStorage.setItem('auth_expires_in', data.data.expires.in.toString());
-          }
+          // Just store the token in sessionStorage as a backup
+          sessionStorage.setItem('auth_token', data.data.token);
         }
         
         return data;
@@ -369,15 +348,9 @@ export const apiClient = {
     
     async verifySession() {
       try {
-        const token = localStorage.getItem('auth_token');
-        
-        if (!token) {
-          return { success: false, isAuthenticated: false };
-        }
-        
+        // Cookies will be automatically sent with the request
         const response = await fetch('/api/auth/verify', {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'X-Platform': 'web'
           },
           credentials: 'include' // Important for cookies
@@ -408,23 +381,20 @@ export const apiClient = {
     
     clearAuthData() {
       if (typeof window !== 'undefined') {
-        // Clear all auth-related data from localStorage
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_refresh_token');
-        localStorage.removeItem('auth_expires_at');
-        localStorage.removeItem('auth_expires_in');
-        localStorage.removeItem('user_id');
-        localStorage.removeItem('user_role');
+        // Clear all auth-related data from sessionStorage
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('user_id');
+        sessionStorage.removeItem('user_role');
         
         // Also clear any items that might be related to Supabase
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
           if (key && (
             key.startsWith('supabase.') || 
             key.includes('auth') || 
             key.includes('token')
           )) {
-            localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
           }
         }
       }
@@ -433,20 +403,12 @@ export const apiClient = {
     isAuthenticated(): boolean {
       if (typeof window === 'undefined') return false;
       
-      const token = localStorage.getItem('auth_token');
-      if (!token) return false;
-      
-      // Check expiry if available
-      const expiresAt = localStorage.getItem('auth_expires_at');
-      if (expiresAt) {
-        const expiryTime = parseInt(expiresAt, 10) * 1000; // Convert to milliseconds
-        if (Date.now() >= expiryTime) {
-          // Token has expired, try to refresh if we have a refresh token
-          this.refreshToken().catch(() => {
-            this.clearAuthData();
-          });
-          return false;
-        }
+      // Check for token in sessionStorage as a quick client-side check
+      const token = sessionStorage.getItem('auth_token');
+      if (!token) {
+        // If no token in sessionStorage, try to refresh from cookies
+        this.refreshToken().catch(() => {});
+        return false;
       }
       
       return true;
@@ -454,7 +416,7 @@ export const apiClient = {
     
     getUserRole(): string | null {
       if (typeof window === 'undefined') return null;
-      return localStorage.getItem('user_role');
+      return sessionStorage.getItem('user_role');
     }
   }
 };

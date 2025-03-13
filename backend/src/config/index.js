@@ -19,12 +19,17 @@ const config = {
   // Stripe configuration
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY,
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    driverSubscriptionPriceId: process.env.STRIPE_DRIVER_SUBSCRIPTION_PRICE_ID,
   },
+  
+  // Base URL for the application (used for webhooks and redirects)
+  baseUrl: process.env.BASE_URL || 'http://localhost:3000',
   
   // JWT configuration
   jwt: {
-    secret: process.env.JWT_SECRET || 'temp-jwt-secret-must-change-in-production',
+    secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
   

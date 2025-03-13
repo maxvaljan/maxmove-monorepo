@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import NavbarDesktopMenu from "./navbar/NavbarDesktopMenu";
 import NavbarMobileMenu from "./navbar/NavbarMobileMenu";
 import NavbarUserMenu from "./navbar/NavbarUserMenu";
+import { apiClient } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -17,9 +18,11 @@ const Navbar = () => {
   const router = useRouter();
   const pathname = usePathname();
 
+  // The conditional rendering is now handled by the NavWrapper component
+
   // Define dark background routes
   const darkBackgroundRoutes = ["/", "/investment", "/roadmap", "/business"];
-  const isDarkBackground = darkBackgroundRoutes.includes(pathname);
+  const isDarkBackground = darkBackgroundRoutes.includes(pathname || '');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -27,20 +30,44 @@ const Navbar = () => {
     };
     window.addEventListener("scroll", handleScroll);
 
-    // Add a try-catch to handle any errors with Supabase
-    try {
-      // Get initial session
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-      }).catch(err => {
-        console.error("Failed to get session:", err);
-      });
+    // Use our API client to check authentication
+    const checkAuthStatus = async () => {
+      try {
+        // Verify if the user is authenticated
+        if (apiClient.auth.isAuthenticated()) {
+          // If we have a valid token, get user session info
+          const { success, isAuthenticated, user } = await apiClient.auth.verifySession();
+          
+          if (success && isAuthenticated && user) {
+            // Create a session-like object for compatibility
+            setSession({
+              user: user,
+              accessToken: localStorage.getItem('auth_token'),
+              refreshToken: localStorage.getItem('auth_refresh_token')
+            });
+          } else {
+            setSession(null);
+          }
+        } else {
+          setSession(null);
+        }
+      } catch (error) {
+        console.error("Error checking auth status:", error);
+        setSession(null);
+      }
+    };
 
-      // Listen for auth changes
+    // Check auth status immediately
+    checkAuthStatus();
+
+    // Also set up a Supabase listener as a backup
+    // This helps in case the user authenticates in another tab
+    try {
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
+        // When auth state changes, re-check our status
+        checkAuthStatus();
       });
 
       return () => {
@@ -48,21 +75,79 @@ const Navbar = () => {
         subscription?.unsubscribe();
       };
     } catch (error) {
-      console.error("Error initializing Supabase auth:", error);
+      console.error("Error initializing auth:", error);
       return () => {
         window.removeEventListener("scroll", handleScroll);
       };
     }
   }, []);
 
+  /**
+   * Sign-out function that directly works with both our API and Supabase
+   * This fixes sign-out issues by doing both client and server logout
+   */
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
+    try {
+      setIsMobileMenuOpen(false); // Close mobile menu if open
+      console.log("Signing out...");
+      
+      // 1. First clear client storage immediately (don't wait for server)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_refresh_token');
+        localStorage.removeItem('auth_expires_at');
+        localStorage.removeItem('auth_expires_in');
+        localStorage.removeItem('user_id');
+        localStorage.removeItem('user_role');
+        
+        // Also clear any Supabase-related items
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('supabase.') || key.includes('auth') || key.includes('token'))) {
+            localStorage.removeItem(key);
+          }
+        }
+        
+        // Also clear sessionStorage
+        sessionStorage.clear();
+      }
+      
+      // 2. Also sign out of Supabase Auth directly
+      await supabase.auth.signOut();
+      
+      // 3. Finally, call our backend API to clear server-side session
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include' // Include cookies
+        });
+      } catch (apiError) {
+        console.error("API logout error:", apiError);
+        // Continue with local logout even if API fails
+      }
+      
+      // 4. Set session state to null
+      setSession(null);
+      
+      // 5. Force a hard redirect to clear any React state
+      console.log("Redirecting to signin page...");
+      window.location.href = "/signin?ts=" + new Date().getTime();
+    } catch (error) {
+      console.error("Error signing out:", error);
+      
+      // Fallback - force redirect even if errors occur
+      if (typeof window !== 'undefined') {
+        window.location.href = "/signin";
+      }
+    }
   };
 
   const getTextColor = () => {
     if (isDarkBackground) {
-      return isScrolled ? "text-maxmove-700 hover:text-maxmove-900" : "text-white hover:text-white/80";
+      return isScrolled ? "text-maxmove-700 hover:text-maxmove-900" : "text-maxmove-secondary hover:text-maxmove-secondary/80";
     }
     return "text-maxmove-700 hover:text-maxmove-900";
   };
@@ -82,7 +167,7 @@ const Navbar = () => {
               href="/" 
               className={`text-2xl font-bold transition-colors ${
                 isDarkBackground 
-                  ? isScrolled ? "text-maxmove-900" : "text-white"
+                  ? isScrolled ? "text-maxmove-900" : "text-maxmove-secondary"
                   : "text-maxmove-900"
               }`}
             >
@@ -105,7 +190,7 @@ const Navbar = () => {
               variant="ghost"
               size="icon"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={isDarkBackground ? (isScrolled ? "text-maxmove-900" : "text-white") : "text-maxmove-900"}
+              className={isDarkBackground ? (isScrolled ? "text-maxmove-900" : "text-maxmove-secondary") : "text-maxmove-900"}
             >
               {isMobileMenuOpen ? (
                 <X className="h-6 w-6" />

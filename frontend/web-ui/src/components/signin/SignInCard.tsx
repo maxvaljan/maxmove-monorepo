@@ -27,28 +27,15 @@ export const SignInCard = () => {
           </div>
         </div>
         <GoogleSignInButton />
-        <div className="text-center text-sm space-y-2">
-          <div>
-            <Button
-              type="button"
-              variant="link"
-              className="text-maxmove-800 hover:text-maxmove-900 p-0"
-              onClick={() => router.push("/reset-password")}
-            >
-              Forgot your password?
-            </Button>
-          </div>
-          <div>
-            <span className="text-maxmove-600">New to Maxmove? </span>
-            <Button
-              type="button"
-              variant="link"
-              className="text-maxmove-800 hover:text-maxmove-900 p-0"
-              onClick={() => router.push("/account-type")}
-            >
-              Create an account
-            </Button>
-          </div>
+        <div className="text-center text-sm">
+          <Button
+            type="button"
+            variant="link"
+            className="text-maxmove-800 hover:text-maxmove-900 p-0"
+            onClick={() => window.location.href = "/reset-password"}
+          >
+            Forgot your password?
+          </Button>
         </div>
       </CardContent>
     </Card>

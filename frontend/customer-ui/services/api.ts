@@ -1,145 +1,228 @@
-// API Service for the customer mobile app
-// This file handles all API requests to our backend
-
+import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
-// Base URL for API requests - use .env in a real app
-const API_URL = 'http://localhost:3000/api';
+// Set base URL based on environment
+const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:3000/api';
 
-// Helper function to get the auth token
-const getToken = async () => {
-  return await SecureStore.getItemAsync('auth_token');
-};
+// Create axios instance
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Platform': 'mobile-customer',
+  },
+});
 
-// Helper function for API requests
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  try {
-    const token = await getToken();
+// Add request interceptor for authentication
+api.interceptors.request.use(
+  async (config) => {
+    // Get token from secure storage
+    const token = await SecureStore.getItemAsync('authToken');
     
-    // Set headers with authorization if token exists
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      ...options.headers
-    };
-    
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers
-    });
-    
-    // Handle 401 Unauthorized by clearing token
-    if (response.status === 401) {
-      await SecureStore.deleteItemAsync('auth_token');
+    // If token exists, add it to the request headers
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     
-    const data = await response.json();
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for token refresh
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
+
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
     
-    if (!response.ok) {
-      throw new Error(data.message || 'An error occurred');
+    // If error is unauthorized and we haven't tried to refresh the token yet
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // If we're already refreshing, add this request to the queue
+        return new Promise(function(resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(token => {
+            originalRequest.headers['Authorization'] = 'Bearer ' + token;
+            return api(originalRequest);
+          })
+          .catch(err => {
+            return Promise.reject(err);
+          });
+      }
+      
+      originalRequest._retry = true;
+      isRefreshing = true;
+      
+      try {
+        // Try to refresh the token
+        const refreshToken = await SecureStore.getItemAsync('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+        
+        const response = await axios.post(`${API_URL}/auth/refresh-token`, {
+          refreshToken,
+          platform: 'mobile'
+        });
+        
+        if (response.data.token) {
+          // Update stored tokens
+          await SecureStore.setItemAsync('authToken', response.data.token);
+          if (response.data.refreshToken) {
+            await SecureStore.setItemAsync('refreshToken', response.data.refreshToken);
+          }
+          
+          // Update auth header for this request
+          api.defaults.headers.common['Authorization'] = 'Bearer ' + response.data.token;
+          originalRequest.headers['Authorization'] = 'Bearer ' + response.data.token;
+          
+          // Process queued requests
+          processQueue(null, response.data.token);
+          
+          // Retry the original request
+          return api(originalRequest);
+        } else {
+          throw new Error('Token refresh failed');
+        }
+      } catch (refreshError) {
+        // If refresh fails, clear tokens and reject all queued requests
+        await SecureStore.deleteItemAsync('authToken');
+        await SecureStore.deleteItemAsync('refreshToken');
+        processQueue(refreshError, null);
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
     
-    return data;
-  } catch (error) {
-    console.error(`API Request Error: ${endpoint}`, error);
-    throw error;
+    return Promise.reject(error);
   }
+);
+
+// Auth API methods
+export const login = async (identifier: string, password: string, isEmail: boolean = true) => {
+  // Prepare login payload based on identifier type
+  const payload = isEmail 
+    ? { email: identifier, password, platform: 'mobile' }
+    : { phone: identifier, password, platform: 'mobile' };
+    
+  const response = await api.post('/auth/login', payload);
+  
+  if (response.data.token) {
+    await SecureStore.setItemAsync('authToken', response.data.token);
+    await SecureStore.setItemAsync('refreshToken', response.data.refreshToken);
+    await SecureStore.setItemAsync('userId', response.data.user.id);
+  }
+  return response.data;
 };
 
-// Authentication
-export const authAPI = {
-  login: async (credentials: { email?: string; phone?: string; password: string }) => {
-    return apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials)
-    });
-  },
-  
-  register: async (userData: { email: string; password: string; name?: string; phone_number?: string }) => {
-    return apiRequest('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData)
-    });
-  },
-  
-  logout: async () => {
-    const result = await apiRequest('/auth/logout', {
-      method: 'POST'
-    });
-    await SecureStore.deleteItemAsync('auth_token');
-    return result;
-  },
-  
-  getProfile: async () => {
-    return apiRequest('/users/me');
-  }
+export const register = async (userData: any) => {
+  return api.post('/auth/register', { ...userData, role: 'customer', platform: 'mobile' });
 };
 
-// Orders
-export const orderAPI = {
-  getOrders: async () => {
-    return apiRequest('/orders/customer/me');
-  },
-  
-  getOrderById: async (id: string) => {
-    return apiRequest(`/orders/${id}`);
-  },
-  
-  createOrder: async (orderData: {
-    pickup_address: string;
-    dropoff_address: string;
-    vehicle_type_id: string;
-    payment_method?: string;
-    contact_name?: string;
-    contact_phone?: string;
-    items?: any[];
-  }) => {
-    return apiRequest('/orders', {
-      method: 'POST',
-      body: JSON.stringify(orderData)
-    });
-  },
-  
-  cancelOrder: async (id: string) => {
-    return apiRequest(`/orders/${id}`, {
-      method: 'DELETE'
-    });
-  }
+export const logout = async () => {
+  await SecureStore.deleteItemAsync('authToken');
+  await SecureStore.deleteItemAsync('refreshToken');
+  await SecureStore.deleteItemAsync('userId');
+  return { success: true };
 };
 
-// Vehicles
-export const vehicleAPI = {
-  getVehicleTypes: async () => {
-    return apiRequest('/vehicles/types');
-  },
+export const refreshToken = async () => {
+  const refreshToken = await SecureStore.getItemAsync('refreshToken');
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
   
-  getVehicleById: async (id: string) => {
-    return apiRequest(`/vehicles/types/${id}`);
-  }
-};
-
-// Wallet & Payment Methods
-export const paymentAPI = {
-  getWallet: async () => {
-    return apiRequest('/users/wallet');
-  },
+  const response = await api.post('/auth/refresh-token', { refreshToken, platform: 'mobile' });
   
-  getPaymentMethods: async () => {
-    return apiRequest('/users/payment-methods');
+  if (response.data.token) {
+    await SecureStore.setItemAsync('authToken', response.data.token);
+    if (response.data.refreshToken) {
+      await SecureStore.setItemAsync('refreshToken', response.data.refreshToken);
+    }
   }
+  
+  return response.data;
 };
 
-// Drivers
-export const driverAPI = {
-  getNearbyDrivers: async (latitude: number, longitude: number, radius: number = 5) => {
-    return apiRequest(`/drivers/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}`);
-  }
+export const getProfile = async () => {
+  return api.get('/users/profile');
 };
 
-export default {
-  auth: authAPI,
-  orders: orderAPI,
-  vehicles: vehicleAPI,
-  payment: paymentAPI,
-  drivers: driverAPI
+export const updateProfile = async (profileData: any) => {
+  return api.put('/users/profile', profileData);
 };
+
+// Order API methods
+export const createOrder = async (orderData: any) => {
+  return api.post('/orders', orderData);
+};
+
+export const getOrders = async () => {
+  return api.get('/orders');
+};
+
+export const getOrder = async (orderId: string) => {
+  return api.get(`/orders/${orderId}`);
+};
+
+export const cancelOrder = async (orderId: string) => {
+  return api.post(`/orders/${orderId}/cancel`);
+};
+
+// Vehicle API methods
+export const getVehicleTypes = async () => {
+  return api.get('/vehicles/types');
+};
+
+// Payment API methods
+export const addPaymentMethod = async (paymentMethodId: string) => {
+  return api.post('/payment/methods', { paymentMethodId });
+};
+
+export const getPaymentMethods = async () => {
+  return api.get('/payment/methods');
+};
+
+export const removePaymentMethod = async (paymentMethodId: string) => {
+  return api.delete(`/payment/methods/${paymentMethodId}`);
+};
+
+export const createPaymentIntent = async (orderId: string, paymentMethodId: string, tipAmount = 0) => {
+  return api.post('/payment/intents', { orderId, paymentMethodId, tipAmount });
+};
+
+export const recordCashPayment = async (orderId: string, tipAmount = 0) => {
+  return api.post('/payment/cash-payments', { orderId, tipAmount });
+};
+
+export const addTip = async (orderId: string, paymentIntentId: string, tipAmount: number) => {
+  return api.post(`/payment/intents/${paymentIntentId}/tip`, { 
+    orderId, 
+    tipAmount 
+  });
+};
+
+// Export the API instance as default
+export default api;

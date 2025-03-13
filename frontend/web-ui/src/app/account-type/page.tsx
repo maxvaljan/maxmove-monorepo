@@ -9,7 +9,7 @@ export default function AccountTypeSelectionPage() {
   const router = useRouter();
 
   const handleSelection = (type: "personal" | "business" | "driver") => {
-    router.push(`/signup?type=${type}`);
+    window.location.href = `/signup?type=${type}`;
   };
 
   return (
@@ -133,7 +133,7 @@ export default function AccountTypeSelectionPage() {
             <Button
               variant="link"
               className="text-maxmove-800 hover:text-maxmove-900"
-              onClick={() => router.push("/signin")}
+              onClick={() => window.location.href = "/signin"}
             >
               Sign in
             </Button>

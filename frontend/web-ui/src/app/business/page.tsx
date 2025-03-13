@@ -158,17 +158,17 @@ export default function Business() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative py-20 bg-maxmove-950 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a,#334155)]"></div>
+      <section className="relative py-20 bg-maxmove-primary text-maxmove-secondary overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0a101c,#1c2434)]"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-maxmove-secondary">
               Maxmove for Business
             </h1>
-            <p className="text-xl md:text-2xl text-maxmove-200 mb-8 max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl text-maxmove-secondary opacity-80 mb-8 max-w-3xl mx-auto">
               Streamline your logistics operations with our enterprise-grade delivery solutions
             </p>
-            <Button size="lg" onClick={handleContactSales} className="bg-slate-50">
+            <Button size="lg" onClick={handleContactSales} className="bg-maxmove-secondary text-maxmove-primary hover:bg-opacity-90">
               Contact Sales <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </div>
@@ -375,10 +375,14 @@ const delivery = await maxmove.createDelivery({
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-maxmove-950 text-white">
+      <section className="py-20 bg-maxmove-primary text-maxmove-secondary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold mb-6">Ready to Transform Your Delivery Operations?</h2>
-          <Button size="lg" variant="default" onClick={() => router.push("/signup?type=business")}>
+          <h2 className="text-3xl font-bold mb-6 text-maxmove-secondary">Ready to Transform Your Delivery Operations?</h2>
+          <Button 
+            size="lg" 
+            className="bg-maxmove-secondary text-maxmove-primary hover:bg-opacity-90" 
+            onClick={() => router.push("/signup?type=business")}
+          >
             Try it now
           </Button>
         </div>

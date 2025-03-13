@@ -46,8 +46,8 @@ export default function PlaceOrderPage() {
   useEffect(() => {
     const fetchMapboxToken = async () => {
       try {
-        // Try to fetch from our backend API first
-        const response = await fetch('http://localhost:3000/api/api-keys/mapbox');
+        // Try to fetch from our backend API first with relative URL
+        const response = await fetch('/api/api-keys/mapbox');
         
         if (!response.ok) {
           throw new Error('Failed to fetch Mapbox token from API');
@@ -149,8 +149,8 @@ export default function PlaceOrderPage() {
         return;
       }
 
-      // Use our backend API instead of direct Supabase calls
-      const response = await fetch('http://localhost:3000/api/orders', {
+      // Use relative URL for API endpoints in Next.js
+      const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -212,8 +212,8 @@ export default function PlaceOrderPage() {
         return;
       }
 
-      // Fetch past orders
-      const response = await fetch('http://localhost:3000/api/orders', {
+      // Fetch past orders using relative URL
+      const response = await fetch('/api/orders', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
         }
@@ -234,9 +234,10 @@ export default function PlaceOrderPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-57px)]">
-      <div className="w-1/2 p-6 space-y-6 overflow-y-auto">
-        <div className="flex justify-between items-center">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-57px)]">
+      {/* Left Side - Order Form */}
+      <div className="lg:w-1/2 p-6 flex flex-col h-full">
+        <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-maxmove-900">
             Place New Order
           </h1>
@@ -246,18 +247,22 @@ export default function PlaceOrderPage() {
           />
         </div>
 
-        <RouteManager />
-        
-        <VehicleSelection onVehicleSelect={setSelectedVehicle} />
+        <div className="flex-1 flex flex-col space-y-6 overflow-auto pr-4 pb-4 custom-scrollbar">
+          <RouteManager />
+          
+          <VehicleSelection onVehicleSelect={setSelectedVehicle} />
+        </div>
 
-        <Button 
-          className="w-full"
-          size="lg"
-          onClick={handleCreateOrder}
-          disabled={!selectedVehicle || !stops[0].coordinates || !stops[stops.length - 1].coordinates}
-        >
-          Create Order
-        </Button>
+        <div className="pt-6 border-t mt-6">
+          <Button 
+            className="w-full"
+            size="lg"
+            onClick={handleCreateOrder}
+            disabled={!selectedVehicle || !stops[0].coordinates || !stops[stops.length - 1].coordinates}
+          >
+            Create Order
+          </Button>
+        </div>
 
         <PastOrdersDialog 
           open={pastOrdersOpen} 
@@ -266,7 +271,8 @@ export default function PlaceOrderPage() {
         />
       </div>
 
-      <div className="w-1/2 h-full">
+      {/* Right Side - Map */}
+      <div className="lg:w-1/2 h-[400px] lg:h-full">
         <Map
           pickupLocation={stops[0].coordinates}
           dropoffLocation={stops[stops.length - 1].coordinates}

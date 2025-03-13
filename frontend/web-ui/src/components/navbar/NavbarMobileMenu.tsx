@@ -81,7 +81,7 @@ const NavbarMobileMenu = ({ session, handleSignOut, navigate }: NavbarMobileMenu
           ) : (
             <Button
               className="w-full bg-maxmove-800 hover:bg-maxmove-900 text-white transition-colors"
-              onClick={() => router.push("/signin")}
+              onClick={() => window.location.href = "/signin"}
             >
               Sign In
             </Button>

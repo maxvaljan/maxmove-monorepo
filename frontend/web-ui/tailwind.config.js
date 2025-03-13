@@ -99,6 +99,8 @@ module.exports = {
           800: "#434d63",
           900: "#3b4354",
           950: "#272b36",
+          primary: "#0e1424",
+          secondary: "#f1ebdb",
         },
       },
       borderColor: {

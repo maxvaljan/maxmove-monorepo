@@ -5,6 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import VehicleCarousel from './vehicle/VehicleCarousel';
+import { Card } from './ui/card';
+import { Info } from 'lucide-react';
 
 interface VehicleType {
   id: string;
@@ -23,16 +25,17 @@ export default function VehicleSelection({ onVehicleSelect }: VehicleSelectionPr
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<VehicleType | null>(null);
 
   useEffect(() => {
     async function fetchVehicleTypes() {
       try {
-        // First try to fetch from API
-        const response = await fetch('http://localhost:3000/api/vehicle-types');
+        // Use relative URL for API endpoints in Next.js
+        const response = await fetch('/api/vehicles/types');
         
         if (response.ok) {
           const data = await response.json();
-          setVehicleTypes(data.data);
+          setVehicleTypes(data.data || []);
           setLoading(false);
           return;
         }
@@ -60,65 +63,67 @@ export default function VehicleSelection({ onVehicleSelect }: VehicleSelectionPr
 
   const handleVehicleSelect = (vehicleId: string) => {
     setSelectedVehicle(vehicleId);
+    const selectedVehicle = vehicleTypes.find(v => v.id === vehicleId) || null;
+    setSelectedVehicleDetails(selectedVehicle);
     onVehicleSelect(vehicleId);
   };
 
   if (loading) {
     return (
-      <div className="p-4 border rounded-md bg-slate-50">
-        <div className="h-20 animate-pulse bg-slate-200 rounded-md"></div>
-      </div>
+      <Card className="p-6 space-y-4">
+        <div className="h-8 w-48 animate-pulse bg-slate-200 rounded-md"></div>
+        <div className="h-48 animate-pulse bg-slate-200 rounded-md"></div>
+      </Card>
     );
   }
 
-  // Create vehicle type groupings
-  const standardVehicles = vehicleTypes.filter(v => 
-    ['car', 'bike_motorcycle'].includes(v.category)
-  );
-  
-  const specialVehicles = vehicleTypes.filter(v => 
-    ['van', 'light_truck', 'medium_truck'].includes(v.category)
-  );
-  
-  const heavyVehicles = vehicleTypes.filter(v => 
-    ['heavy_truck', 'refrigerated', 'towing'].includes(v.category)
-  );
+  // Sort vehicles by name or a specific sort order
+  const sortedVehicleTypes = [...vehicleTypes].sort((a, b) => {
+    // You can sort by name, category, or any other property
+    return a.name.localeCompare(b.name);
+  });
 
   return (
-    <div className="space-y-4">
-      <Label className="text-lg font-semibold">Select Vehicle Type</Label>
+    <Card className="p-6 space-y-6 border border-gray-200 shadow-sm">
+      <div className="flex justify-between items-center">
+        <Label className="text-xl font-semibold text-maxmove-primary">Select Vehicle Type</Label>
+        {selectedVehicleDetails && (
+          <div className="flex items-center text-sm text-maxmove-700 bg-maxmove-50 px-3 py-1 rounded-full">
+            <span>Selected: {selectedVehicleDetails.name}</span>
+          </div>
+        )}
+      </div>
       
-      <Tabs defaultValue="standard" className="w-full">
-        <TabsList className="grid grid-cols-3 mb-4">
-          <TabsTrigger value="standard">Standard</TabsTrigger>
-          <TabsTrigger value="special">Special</TabsTrigger>
-          <TabsTrigger value="heavy">Heavy</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="standard">
-          <VehicleCarousel 
-            vehicles={standardVehicles}
-            selectedVehicle={selectedVehicle}
-            onVehicleSelect={handleVehicleSelect}
-          />
-        </TabsContent>
-        
-        <TabsContent value="special">
-          <VehicleCarousel 
-            vehicles={specialVehicles}
-            selectedVehicle={selectedVehicle}
-            onVehicleSelect={handleVehicleSelect}
-          />
-        </TabsContent>
-        
-        <TabsContent value="heavy">
-          <VehicleCarousel 
-            vehicles={heavyVehicles}
-            selectedVehicle={selectedVehicle}
-            onVehicleSelect={handleVehicleSelect}
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {sortedVehicleTypes.map(vehicle => (
+          <Card 
+            key={vehicle.id}
+            className={`h-40 p-4 cursor-pointer transition-all ${
+              selectedVehicle === vehicle.id 
+                ? 'border-2 border-maxmove-primary shadow-md' 
+                : 'hover:border-maxmove-200 hover:shadow-sm'
+            }`}
+            onClick={() => handleVehicleSelect(vehicle.id)}
+          >
+            <div className="flex flex-col items-center justify-between h-full">
+              <div className="text-center space-y-1">
+                <div className="text-3xl mb-2">
+                  {/* This could be replaced with your vehicle icon component */}
+                  {vehicle.category.includes('car') ? '🚗' : 
+                   vehicle.category.includes('van') ? '🚐' : 
+                   vehicle.category.includes('truck') ? '🚚' : 
+                   vehicle.category.includes('bike') ? '🛵' : '🚚'}
+                </div>
+                <h3 className="font-semibold text-maxmove-800">{vehicle.name}</h3>
+                <p className="text-xs text-gray-500 truncate max-w-full">{vehicle.description}</p>
+              </div>
+              <div className="text-xs text-gray-500 mt-2">
+                {vehicle.max_weight && `Max: ${vehicle.max_weight}`}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </Card>
   );
 }
