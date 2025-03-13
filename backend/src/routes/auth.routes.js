@@ -31,4 +31,26 @@ router.post('/logout', authController.logout);
  */
 router.get('/profile', authMiddleware, authController.getProfile);
 
+/**
+ * @route   POST /api/auth/refresh
+ * @desc    Refresh authentication token
+ * @access  Public
+ */
+router.post('/refresh', authController.refreshToken);
+
+/**
+ * @route   GET /api/auth/verify
+ * @desc    Verify if current session is valid
+ * @access  Private
+ */
+router.get('/verify', authMiddleware, (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: {
+      isAuthenticated: true,
+      user: req.user
+    }
+  });
+});
+
 module.exports = router;

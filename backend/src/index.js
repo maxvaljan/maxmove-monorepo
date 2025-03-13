@@ -13,6 +13,14 @@ const vehicleRoutes = require('./routes/vehicle.routes');
 const userRoutes = require('./routes/user.routes');
 const driverRoutes = require('./routes/driver.routes');
 const configRoutes = require('./routes/config.routes');
+// Temporarily comment out payment routes to fix startup error
+// const paymentRoutes = require('./routes/payment.routes');
+
+// Validate critical environment variables
+if (!config.jwt.secret) {
+  console.error('ERROR: JWT_SECRET environment variable is required');
+  process.exit(1);
+}
 
 const app = express();
 
@@ -46,6 +54,10 @@ app.get('/', (req, res) => {
   });
 });
 
+// Add CSRF token handler to responses
+const { csrfTokenHandler } = require('./middleware/auth');
+app.use(csrfTokenHandler);
+
 // API routes - only mount the ones we've implemented
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
@@ -53,6 +65,8 @@ app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/drivers', driverRoutes);
 app.use('/api/api-keys', configRoutes);
+// Temporarily comment out payment routes to fix startup error
+// app.use('/api/payment', paymentRoutes);
 
 // Error handling
 app.use(notFoundHandler);

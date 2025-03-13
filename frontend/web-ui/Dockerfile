@@ -5,8 +5,8 @@ FROM node:18-alpine AS build
 WORKDIR /app
 
 # Install dependencies
-COPY package.json yarn.lock* ./
-RUN yarn install --frozen-lockfile
+COPY package.json package-lock.json* ./
+RUN npm ci || npm install
 
 # Copy all files
 COPY . .
@@ -16,7 +16,7 @@ ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
 
 # Build application
-RUN yarn build
+RUN npm run build
 
 # Production stage
 FROM node:18-alpine AS production

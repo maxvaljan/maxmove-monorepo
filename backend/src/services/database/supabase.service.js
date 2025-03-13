@@ -540,6 +540,117 @@ class SupabaseService {
       this.handleError(error, `getApiKey(${keyName})`);
     }
   }
+  
+  /**
+   * Execute an operation within a database transaction
+   * Uses Supabase's PostgreSQL transactions through RPC
+   * 
+   * @param {Function} callback - Function that receives the transaction context
+   * @returns {Promise<any>} - Result of the transaction
+   */
+  async withTransaction(callback) {
+    try {
+      // Start transaction
+      const { data: beginResult, error: beginError } = await this.adminClient.rpc('begin_transaction');
+      
+      if (beginError) {
+        logger.error({
+          message: 'Failed to begin transaction',
+          error: beginError.message
+        });
+        throw beginError;
+      }
+      
+      // Get transaction ID
+      const txId = beginResult.transaction_id;
+      
+      // Create transaction context
+      const txContext = {
+        // Transactional functions
+        insert: async (table, records) => {
+          const { data, error } = await this.adminClient.rpc('tx_insert', {
+            tx_id: txId,
+            p_table: table,
+            p_records: records
+          });
+          
+          if (error) throw error;
+          return data;
+        },
+        
+        update: async (table, updates, conditions) => {
+          const { data, error } = await this.adminClient.rpc('tx_update', {
+            tx_id: txId,
+            p_table: table,
+            p_updates: updates,
+            p_conditions: conditions
+          });
+          
+          if (error) throw error;
+          return data;
+        },
+        
+        delete: async (table, conditions) => {
+          const { data, error } = await this.adminClient.rpc('tx_delete', {
+            tx_id: txId,
+            p_table: table,
+            p_conditions: conditions
+          });
+          
+          if (error) throw error;
+          return data;
+        },
+        
+        select: async (table, columns, conditions) => {
+          const { data, error } = await this.adminClient.rpc('tx_select', {
+            tx_id: txId,
+            p_table: table,
+            p_columns: columns,
+            p_conditions: conditions
+          });
+          
+          if (error) throw error;
+          return data;
+        }
+      };
+      
+      try {
+        // Run the callback with transaction context
+        const result = await callback(txContext);
+        
+        // Commit the transaction
+        const { error: commitError } = await this.adminClient.rpc('commit_transaction', {
+          tx_id: txId
+        });
+        
+        if (commitError) {
+          logger.error({
+            message: 'Failed to commit transaction',
+            error: commitError.message
+          });
+          throw commitError;
+        }
+        
+        return result;
+      } catch (error) {
+        // Rollback the transaction
+        try {
+          await this.adminClient.rpc('rollback_transaction', {
+            tx_id: txId
+          });
+        } catch (rollbackError) {
+          logger.error({
+            message: 'Failed to rollback transaction',
+            error: rollbackError.message
+          });
+        }
+        
+        throw error;
+      }
+    } catch (error) {
+      this.handleError(error, 'withTransaction');
+    }
+  }
 }
 
 module.exports = new SupabaseService();

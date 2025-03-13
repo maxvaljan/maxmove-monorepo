@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,9 +13,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { CountryCodeSelect } from "@/components/CountryCodeSelect";
+import { apiClient } from "@/lib/api";
 
 const signInSchema = z.object({
   identifier: z.string().min(1, "Email or phone number is required"),
@@ -26,7 +25,6 @@ const signInSchema = z.object({
 export const SignInForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [countryCode, setCountryCode] = useState("+49");
-  const router = useRouter();
 
   const form = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
@@ -40,61 +38,8 @@ export const SignInForm = () => {
     try {
       setIsLoading(true);
       const isEmail = values.identifier.includes('@');
-      console.log(`Attempting to sign in with ${isEmail ? 'email' : 'phone'}...`);
       
-      // First, try using our backend API
-      try {
-        const credentials = isEmail 
-          ? { 
-              email: values.identifier, 
-              password: values.password 
-            }
-          : { 
-              phone: `${countryCode}${values.identifier}`,
-              password: values.password 
-            };
-        
-        const response = await fetch('http://localhost:3000/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(credentials)
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Authentication failed');
-        }
-        
-        const { data } = await response.json();
-        
-        if (!data.user) {
-          throw new Error('No user data returned');
-        }
-        
-        // Store the token in local storage or state management
-        localStorage.setItem('auth_token', data.token);
-        
-        console.log("User role:", data.user.role);
-        
-        // Redirect based on role
-        if (data.user.role === 'driver') {
-          console.log("Redirecting to driver dashboard...");
-          router.push('/driver-dashboard');
-        } else {
-          console.log("Redirecting to regular dashboard...");
-          router.push('/dashboard');
-        }
-        
-        toast.success("Successfully signed in!");
-        return;
-      } catch (apiError) {
-        // If our API fails, fall back to direct Supabase auth
-        console.warn('API authentication failed, falling back to Supabase:', apiError);
-      }
-      
-      // Fallback to direct Supabase authentication
+      // Prepare credentials based on identifier type
       const credentials = isEmail 
         ? { 
             email: values.identifier, 
@@ -104,51 +49,39 @@ export const SignInForm = () => {
             phone: `${countryCode}${values.identifier}`,
             password: values.password 
           };
-
-      const { data, error } = await supabase.auth.signInWithPassword(credentials);
-
-      if (error) {
-        console.error("Sign in error:", error);
-        throw error;
-      }
-
-      if (!data.user) {
-        throw new Error("No user data returned");
-      }
-
-      console.log("Sign in successful, fetching user profile...");
       
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-        throw profileError;
+      // Use our enhanced API client for login
+      const { success, data, error } = await apiClient.auth.login(credentials);
+      
+      if (!success || error) {
+        throw new Error(error || 'Authentication failed');
       }
-
-      console.log("User role:", profile?.role);
-
-      // Redirect based on role
-      if (profile?.role === 'driver') {
-        console.log("Redirecting to driver dashboard...");
-        router.push('/driver-dashboard');
-      } else {
-        console.log("Redirecting to regular dashboard...");
-        router.push('/dashboard');
+      
+      if (!data.user) {
+        throw new Error('No user data returned');
       }
-
+      
+      // Show success message
       toast.success("Successfully signed in!");
+      
+      // Add a small delay before redirecting to ensure toast is seen
+      setTimeout(() => {
+        // Redirect based on role
+        if (data.user.role === 'driver') {
+          window.location.href = '/driver-dashboard';
+        } else {
+          window.location.href = '/dashboard/place-order';
+        }
+      }, 300);
     } catch (error: any) {
       console.error("Sign in error:", error);
+      
       if (error.message.includes("Invalid login credentials")) {
         toast.error("Invalid email/phone or password");
       } else if (error.message.includes("Email not confirmed")) {
         toast.error("Please confirm your email address before signing in");
       } else {
-        toast.error(error.message);
+        toast.error(error.message || 'Login failed');
       }
     } finally {
       setIsLoading(false);

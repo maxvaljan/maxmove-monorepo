@@ -1,28 +1,60 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Phone, Mail, Lock } from 'lucide-react-native';
+import { ChevronLeft, User, Lock } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from 'react-native';
+import * as api from '@/services/api';
 
 export default function LoginScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() || 'light';
   const colors = Colors[colorScheme];
   
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [countryCode, setCountryCode] = useState('+49');
 
-  const handleLogin = () => {
+  const isEmail = (text: string) => {
+    return text.includes('@') && text.includes('.');
+  };
+
+  const handleLogin = async () => {
+    if (!identifier) {
+      Alert.alert('Error', 'Please enter your email or phone number');
+      return;
+    }
+    
+    if (!password) {
+      Alert.alert('Error', 'Please enter your password');
+      return;
+    }
+    
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    
+    try {
+      // Determine if input is email or phone
+      const isEmailInput = isEmail(identifier);
+      
+      // For phone numbers, prepend country code if it doesn't already have one
+      const formattedIdentifier = !isEmailInput && !identifier.startsWith('+') 
+        ? `${countryCode}${identifier}` 
+        : identifier;
+      
+      // Call login API with appropriate identifier type
+      await api.login(formattedIdentifier, password, isEmailInput);
+      
+      // On success, navigate to tabs
       router.push('/(tabs)');
-    }, 1500);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      Alert.alert('Login Error', errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -51,13 +83,13 @@ export default function LoginScreen() {
 
         <View style={styles.form}>
           <Input
-            label="Email"
-            placeholder="Enter your email"
-            value={email}
-            onChangeText={setEmail}
+            label="Email or Phone Number"
+            placeholder="Enter your email or phone number"
+            value={identifier}
+            onChangeText={setIdentifier}
             keyboardType="email-address"
             autoCapitalize="none"
-            leftIcon={<Mail size={20} color={colors.grayText} />}
+            leftIcon={<User size={20} color={colors.grayText} />}
           />
           
           <Input
@@ -138,7 +170,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   form: {
-    marginTop: 16,
+    marginTop: 8,
   },
   forgotPassword: {
     alignSelf: 'flex-end',

@@ -49,7 +49,7 @@ const NavbarUserMenu = ({ session, handleSignOut, getTextColor, isHomePage, isSc
             <Button
               variant="ghost"
               className={`transition-all duration-300 font-medium px-4 py-2 rounded-full ${getTextColor()}`}
-              onClick={() => router.push("/admin")}
+              onClick={() => window.location.href = "/admin"}
             >
               Admin
             </Button>
@@ -57,7 +57,7 @@ const NavbarUserMenu = ({ session, handleSignOut, getTextColor, isHomePage, isSc
           <Button
             variant="ghost"
             className={`transition-all duration-300 font-medium px-4 py-2 rounded-full ${getTextColor()}`}
-            onClick={() => router.push("/dashboard")}
+            onClick={() => window.location.href = "/dashboard"}
           >
             <LayoutDashboard className="mr-2 h-4 w-4" />
             Dashboard
@@ -81,14 +81,14 @@ const NavbarUserMenu = ({ session, handleSignOut, getTextColor, isHomePage, isSc
                 <h3 className="text-sm font-medium text-gray-400">Account</h3>
               </div>
               <DropdownMenuItem 
-                onClick={() => router.push("/profile")}
+                onClick={() => window.location.href = "/profile"}
                 className="flex items-center gap-3 px-3 py-3 m-1 rounded-lg cursor-pointer text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10 focus:bg-black/5 dark:focus:bg-white/10 transition-colors"
               >
                 <User className="h-5 w-5 text-[#8B5CF6]" />
                 <span>My Profile</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={() => router.push("/dashboard")}
+                onClick={() => window.location.href = "/dashboard"}
                 className="flex items-center gap-3 px-3 py-3 m-1 rounded-lg cursor-pointer text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10 focus:bg-black/5 dark:focus:bg-white/10 transition-colors"
               >
                 <LayoutDashboard className="h-5 w-5 text-[#8B5CF6]" />
@@ -115,7 +115,7 @@ const NavbarUserMenu = ({ session, handleSignOut, getTextColor, isHomePage, isSc
                 : "bg-white/90 backdrop-blur-sm hover:bg-white text-maxmove-900 shadow-lg"
               : "bg-maxmove-800 hover:bg-maxmove-900 text-white shadow-md"
           }`}
-          onClick={() => router.push("/signin")}
+          onClick={() => window.location.href = "/signin"}
         >
           Sign In
         </Button>
